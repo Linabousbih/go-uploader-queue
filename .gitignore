@@ -1,0 +1,4 @@
+.envrc
+go.mod
+go.sum
+pgdata

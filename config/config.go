@@ -14,6 +14,8 @@ const (
 )
 
 type Config struct {
+	ApiServerPort    string `env:"APISERVER_PORT"`
+	ApiServerHost    string `env:"APISERVER_HOST"`
 	DatabaseName     string `env:"DB_NAME"`
 	DatabaseHost     string `env:"DB_HOST"`
 	DatabasePort     string `env:"DB_PORT"`

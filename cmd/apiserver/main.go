@@ -3,6 +3,7 @@ package main
 import (
 	"async/apiserver"
 	"async/config"
+	"async/store"
 	"context"
 	"log"
 	"log/slog"
@@ -25,7 +26,13 @@ func run() error {
 	}
 	jsonHandler := slog.NewJSONHandler(os.Stdout, nil)
 	logger := slog.New(jsonHandler)
-	server := apiserver.New(config, logger)
+	db, err := store.NewPostgresDB(config)
+
+	if err != nil {
+		return err
+	}
+	dataStore := store.New(db)
+	server := apiserver.New(config, logger, dataStore)
 
 	if err := server.Start(ctx); err != nil {
 		return err

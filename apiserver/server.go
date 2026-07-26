@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"async/config"
+	"async/store"
 	"context"
 	"log/slog"
 	"net"
@@ -11,13 +12,18 @@ import (
 )
 
 type ApiServer struct {
-	Config *config.Config
+	config *config.Config
 	logger *slog.Logger
+	store  *store.Store
 }
 
-func New(config *config.Config, logger *slog.Logger) *ApiServer {
+func New(config *config.Config, logger *slog.Logger, store *store.Store) *ApiServer {
 
-	return &ApiServer{Config: config}
+	return &ApiServer{
+		config: config,
+		logger: logger,
+		store:  store,
+	}
 }
 
 func (s *ApiServer) ping(w http.ResponseWriter, r *http.Request) {
@@ -30,14 +36,17 @@ func (s *ApiServer) ping(w http.ResponseWriter, r *http.Request) {
 
 func (s *ApiServer) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ping", s.ping)
+	mux.HandleFunc("GET /ping", s.ping)
+	mux.HandleFunc("POST /auth/signup", s.signupHandler)
+
+	middleware := NewLoggerMiddleware(s.logger)
 	server := &http.Server{
-		Addr:    net.JoinHostPort(s.Config.ApiServerHost, s.Config.ApiServerPort),
-		Handler: mux,
+		Addr:    net.JoinHostPort(s.config.ApiServerHost, s.config.ApiServerPort),
+		Handler: middleware(mux),
 	}
 
 	go func() {
-		s.logger.Info("starting server at", "port", s.Config.ApiServerPort)
+		s.logger.Info("starting server at", "port", s.config.ApiServerPort)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			s.logger.Error("api server failed to listen and serve", "error", err)
 		}

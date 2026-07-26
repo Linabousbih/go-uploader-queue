@@ -17,10 +17,10 @@ type UserStore struct {
 }
 
 type User struct {
-	Id                  uuid.UUID `db: "id"`
-	Email               string    `db: "email"`
-	HashedPaswordBase64 string    `db: "hashed_password"`
-	CreatedAt           time.Time `db: "created_at"`
+	Id                  uuid.UUID `db:"id"`
+	Email               string    `db:"email"`
+	HashedPaswordBase64 string    `db:"hashed_password"`
+	CreatedAt           time.Time `db:"created_at"`
 }
 
 func NewUserStore(db *sql.DB) *UserStore {

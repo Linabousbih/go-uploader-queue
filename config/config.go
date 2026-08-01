@@ -23,6 +23,7 @@ type Config struct {
 	DatabaseUser     string `env:"DB_USER"`
 	DatabasePassword string `env:"DB_PASSWORD"`
 	Env              Env    `env:"ENV" envDefault:"dev"`
+	JwtSecret        string `env:"JWT_SECRET"`
 }
 
 func (c *Config) DatabaseUrl() string {

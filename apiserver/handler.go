@@ -32,10 +32,11 @@ type ApiResponse[T any] struct {
 func (s *ApiServer) signupHandler() http.HandlerFunc {
 	return handler(func(w http.ResponseWriter, r *http.Request) error {
 
-		req, err := decode[SignupRequest](r)
+		req, err := decode[*SignupRequest](r)
 		if err != nil {
 			return NewErrWithStatus(http.StatusBadRequest, err)
 		}
+		//NewErrWithStatus(...) only creates and returns an error value. It does not write anything to the HTTP response.
 		existingUser, err := s.store.Users.ByEmail(r.Context(), req.Email)
 
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {

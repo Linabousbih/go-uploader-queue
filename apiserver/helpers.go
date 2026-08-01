@@ -26,8 +26,9 @@ func NewErrWithStatus(status int, err error) *ErrWithStatus {
 // We are customizing what errors would return a status code, what errors are logged and what errors are shown to the user
 func handler(f func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// core handler is called here
 		if err := f(w, r); err != nil {
-			// Default status
+			// Default status in case the handler did not receive a ErrWithStatus type
 			status := http.StatusInternalServerError
 			msg := http.StatusText(status)
 			if e, ok := err.(*ErrWithStatus); ok {
@@ -41,9 +42,14 @@ func handler(f func(w http.ResponseWriter, r *http.Request) error) http.HandlerF
 			slog.Error("error executing handler", "error", err, "status", status, "message", msg)
 			w.WriteHeader(status)
 
-			if err := json.NewEncoder(w).Encode(ApiResponse[struct{}]{
+			// if err := json.NewEncoder(w).Encode(ApiResponse[struct{}]{
+			// 	Message: msg,
+			// }); err != nil {
+			// 	slog.Error("error encoding response", "error", err)
+			// }
+			if err := encode(ApiResponse[struct{}]{
 				Message: msg,
-			}); err != nil {
+			}, status, w); err != nil {
 				slog.Error("error encoding response", "error", err)
 			}
 		}

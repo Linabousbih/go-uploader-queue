@@ -7,12 +7,12 @@ import (
 	"net/http"
 )
 
-type SignupRequest struct {
+type CredentialsRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func (s *SignupRequest) Validate() error {
+func (s *CredentialsRequest) Validate() error {
 	if s.Email == "" {
 		return errors.New("email is required")
 	}
@@ -29,10 +29,16 @@ type ApiResponse[T any] struct {
 	Message string `json:"message,omitempty"`
 }
 
+type SigninResponse struct {
+	AccessToken  string
+	RefreshToken string
+}
+
+// Signup Handler
 func (s *ApiServer) signupHandler() http.HandlerFunc {
 	return handler(func(w http.ResponseWriter, r *http.Request) error {
 
-		req, err := decode[*SignupRequest](r)
+		req, err := decode[*CredentialsRequest](r)
 		if err != nil {
 			return NewErrWithStatus(http.StatusBadRequest, err)
 		}
@@ -59,4 +65,40 @@ func (s *ApiServer) signupHandler() http.HandlerFunc {
 		return nil
 	})
 
+}
+
+// Sign in Handler
+
+func (s *ApiServer) signInHandler() http.HandlerFunc {
+	return handler(func(w http.ResponseWriter, r *http.Request) error {
+		req, err := decode[*CredentialsRequest](r)
+		if err != nil {
+			return NewErrWithStatus(http.StatusBadRequest, err)
+		}
+
+		user, err := s.store.Users.ByEmail(r.Context(), req.Email)
+		if err := user.ComparePassword(req.Password); err != nil {
+			return NewErrWithStatus(http.StatusUnauthorized, err)
+		}
+		tokenPair, err := s.jwtManager.GenerateTokenPairs(user.Id)
+		if err != nil {
+			return NewErrWithStatus(http.StatusInternalServerError, err)
+		}
+
+		_, err = s.store.RefreshToken.Create(r.Context(), user.Id, &tokenPair.RefreshToken)
+		if err != nil {
+			return NewErrWithStatus(http.StatusInternalServerError, err)
+		}
+
+		if err := encode(ApiResponse[SigninResponse]{
+			Data: &SigninResponse{
+				AccessToken:  tokenPair.AccessToken.Raw,
+				RefreshToken: tokenPair.RefreshToken.Raw,
+			},
+			Message: "successfully signed in user",
+		}, http.StatusOK, w); err != nil {
+			return NewErrWithStatus(http.StatusInternalServerError, err)
+		}
+		return nil
+	})
 }

@@ -9,12 +9,14 @@ import (
 	"log/slog"
 	"os"
 	"time"
+
 )
 
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
+
 }
 
 func run() error {

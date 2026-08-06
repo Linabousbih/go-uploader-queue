@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 type ApiServer struct {
@@ -16,15 +18,17 @@ type ApiServer struct {
 	logger     *slog.Logger
 	store      *store.Store
 	jwtManager *JwtManager
+	sqsClient  *sqs.Client
 }
 
-func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager) *ApiServer {
+func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager, sqsClient *sqs.Client) *ApiServer {
 
 	return &ApiServer{
 		config:     config,
 		logger:     logger,
 		store:      store,
 		jwtManager: jwtManager,
+		sqsClient:  sqsClient,
 	}
 }
 
@@ -42,8 +46,7 @@ func (s *ApiServer) Start(ctx context.Context) error {
 	mux.HandleFunc("POST /auth/signup", s.signupHandler())
 	mux.HandleFunc("POST /auth/signin", s.signInHandler())
 	mux.HandleFunc("POST /auth/refresh", s.tokenrefreshHandler())
-	
-	
+	mux.HandleFunc("POST /reports", s.tokenrefreshHandler())
 
 	middleware := NewLoggerMiddleware(s.logger)
 	middleware = NewAuthMiddleware(s.jwtManager, s.store.Users)

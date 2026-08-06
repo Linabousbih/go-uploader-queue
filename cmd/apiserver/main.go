@@ -10,6 +10,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 func main() {
@@ -33,9 +36,17 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	sdkConfig, err := awsconfig.LoadDefaultConfig(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 	dataStore := store.New(db)
+	sqsClient := sqs.NewFromConfig(sdkConfig, func(o *sqs.Options) {
+		o.BaseEndpoint = aws.String(config.LocalStackEndpoint)
+	})
+
 	jwtManager := apiserver.NewJwtManager(config)
-	server := apiserver.New(config, logger, dataStore, jwtManager)
+	server := apiserver.New(config, logger, dataStore, jwtManager, sqsClient)
 
 	if err := server.Start(ctx); err != nil {
 		return err

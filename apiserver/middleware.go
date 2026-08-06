@@ -77,3 +77,11 @@ func NewAuthMiddleware(jwtManager *JwtManager, userStore *store.UserStore) func(
 		})
 	}
 }
+
+func UserFromContext(ctx context.Context) (*store.User, bool) {
+	user, ok := ctx.Value(userCtxKey{}).(*store.User)
+	if !ok || user == nil {
+		return nil, false
+	}
+	return user, true
+}

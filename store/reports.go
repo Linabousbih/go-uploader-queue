@@ -40,8 +40,8 @@ func (r *Report) IsDone() bool {
 
 func (r *Report) Status() string {
 	switch {
-	case r.StartedAt != nil:
-		return "started"
+	case r.StartedAt == nil:
+		return "requested"
 	case r.StartedAt != nil && r.IsDone():
 		return "processing"
 	case r.CompletedAt != nil:

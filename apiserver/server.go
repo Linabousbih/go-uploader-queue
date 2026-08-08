@@ -10,25 +10,28 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 type ApiServer struct {
-	config     *config.Config
-	logger     *slog.Logger
-	store      *store.Store
-	jwtManager *JwtManager
-	sqsClient  *sqs.Client
+	config        *config.Config
+	logger        *slog.Logger
+	store         *store.Store
+	jwtManager    *JwtManager
+	sqsClient     *sqs.Client
+	presignClient *s3.PresignClient
 }
 
-func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager, sqsClient *sqs.Client) *ApiServer {
+func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager, sqsClient *sqs.Client, presignClient *s3.PresignClient) *ApiServer {
 
 	return &ApiServer{
-		config:     config,
-		logger:     logger,
-		store:      store,
-		jwtManager: jwtManager,
-		sqsClient:  sqsClient,
+		config:        config,
+		logger:        logger,
+		store:         store,
+		jwtManager:    jwtManager,
+		sqsClient:     sqsClient,
+		presignClient: presignClient,
 	}
 }
 
@@ -47,6 +50,7 @@ func (s *ApiServer) Start(ctx context.Context) error {
 	mux.HandleFunc("POST /auth/signin", s.signInHandler())
 	mux.HandleFunc("POST /auth/refresh", s.tokenrefreshHandler())
 	mux.HandleFunc("POST /reports", s.tokenrefreshHandler())
+	mux.HandleFunc("GET /reports/{id}", s.getReportHandler())
 
 	middleware := NewLoggerMiddleware(s.logger)
 	middleware = NewAuthMiddleware(s.jwtManager, s.store.Users)

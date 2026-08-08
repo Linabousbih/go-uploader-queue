@@ -8,7 +8,7 @@ import (
 // Everything in here is just dummy
 
 type Loz struct {
-	name string
+	Name string
 }
 type LozResponse struct {
 	Data []string

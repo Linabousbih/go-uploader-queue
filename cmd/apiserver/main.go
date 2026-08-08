@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
@@ -45,8 +46,16 @@ func run() error {
 		o.BaseEndpoint = aws.String(config.LocalStackEndpoint)
 	})
 
+	s3client := s3.NewFromConfig(sdkConfig, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(config.S3LoacalStackEndpoint)
+		o.UsePathStyle = true
+
+	})
+
+	presignClient := s3.NewPresignClient(s3client)
+
 	jwtManager := apiserver.NewJwtManager(config)
-	server := apiserver.New(config, logger, dataStore, jwtManager, sqsClient)
+	server := apiserver.New(config, logger, dataStore, jwtManager, sqsClient, presignClient)
 
 	if err := server.Start(ctx); err != nil {
 		return err

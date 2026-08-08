@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/google/uuid"
 )
@@ -257,11 +258,77 @@ func (s *ApiServer) createReportHandler() http.HandlerFunc {
 				ErrorMessage:         report.ErrorMessage,
 				Status:               report.Status(),
 			},
-		}, http.StatusOK, w); err != nil {
+		}, http.StatusCreated, w); err != nil {
 			return NewErrWithStatus(http.StatusInternalServerError, err)
 		}
 
 		return nil
 
+	})
+}
+
+func (s *ApiServer) getReportHandler() http.HandlerFunc {
+	return handler(func(w http.ResponseWriter, r *http.Request) error {
+		reportIdStr := r.PathValue("id")
+		reportId, err := uuid.Parse(reportIdStr)
+		if err != nil {
+			return NewErrWithStatus(http.StatusBadRequest, err)
+		}
+		user, ok := UserFromContext(r.Context())
+		if !ok {
+			return NewErrWithStatus(http.StatusUnauthorized, fmt.Errorf("user not found in context"))
+		}
+
+		report, err := s.store.ReportStore.ByPrimaryKey(r.Context(), user.Id, reportId)
+
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return NewErrWithStatus(http.StatusNotFound, err)
+			}
+			return NewErrWithStatus(http.StatusInternalServerError, err)
+		}
+
+		if report.CompletedAt != nil {
+			needsRefresh := report.DownloadUrlExpiresAt == nil || report.DownloadUrlExpiresAt.Before(time.Now())
+			if needsRefresh || report.DownloadUrl == nil {
+				// Generate a new presigned URL using the S3 Presign Client
+				// To S3 Client (presigned client)
+				expiresAt := time.Now().Add(10 * time.Second)
+				signedUrl, err := s.presignClient.PresignGetObject(r.Context(), &s3.GetObjectInput{
+					Bucket: aws.String(s.config.S3Bucket),
+					Key:    report.OutputFilePath,
+				}, func(o *s3.PresignOptions) {
+					o.Expires = time.Second * 10
+				})
+
+				if err != nil {
+					return NewErrWithStatus(http.StatusInternalServerError, err)
+				}
+
+				report.DownloadUrl = &signedUrl.URL
+				report.DownloadUrlExpiresAt = &expiresAt
+				report, err = s.store.ReportStore.Update(r.Context(), report)
+
+				if err != nil {
+					return NewErrWithStatus(http.StatusInternalServerError, err)
+				}
+			}
+		}
+
+		if err := encode(ApiResponse[CreateReportResponse]{
+			Data: &CreateReportResponse{
+				Id:                   report.Id,
+				UserId:               report.UserId,
+				ReportType:           report.ReportType,
+				OutputFilePath:       report.OutputFilePath,
+				DownloadUrl:          report.DownloadUrl,
+				DownloadUrlExpiresAt: report.DownloadUrlExpiresAt,
+				ErrorMessage:         report.ErrorMessage,
+				Status:               report.Status(),
+			},
+		}, http.StatusOK, w); err != nil {
+			return NewErrWithStatus(http.StatusInternalServerError, err)
+		}
+		return nil
 	})
 }

@@ -1,13 +1,14 @@
 package fixtures
 
 import (
-	"async/config"
-	"async/store"
 	"database/sql"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
+
+	"async/config"
+	"async/database"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func NewTestEnv(t *testing.T) *TestEnv {
 	conf, err := config.New()
 	require.NoError(t, err)
 
-	db, err := store.NewPostgresDB(conf)
+	db, err := database.NewPostgresDB(conf)
 	require.NoError(t, err)
 
 	return &TestEnv{

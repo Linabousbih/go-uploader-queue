@@ -1,10 +1,11 @@
-package store
+package repositories
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
+
+	"async/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -20,42 +21,9 @@ func NewReportStore(db *sql.DB) *ReportStore {
 	}
 }
 
-type Report struct {
-	UserId               uuid.UUID  `db:"user_id"`
-	Id                   uuid.UUID  `db:"id"`
-	ReportType           string     `db:"report_type"`
-	OutputFilePath       *string    `db:"output_file_path"`
-	DownloadUrl          *string    `db:"download_url"`
-	DownloadUrlExpiresAt *time.Time `db:"download_url_expires_at"`
-	ErrorMessage         *string    `db:"error_message"`
-	CreatedAt            time.Time  `db:"created_at"`
-	StartedAt            *time.Time `db:"started_at"`
-	CompletedAt          *time.Time `db:"completed_at"`
-	FailedAt             *time.Time `db:"failed_at"`
-}
-
-func (r *Report) IsDone() bool {
-	return r.CompletedAt != nil || r.FailedAt != nil
-}
-
-func (r *Report) Status() string {
-	switch {
-	case r.StartedAt == nil:
-		return "requested"
-	case r.StartedAt != nil && r.IsDone():
-		return "processing"
-	case r.CompletedAt != nil:
-		return "completed"
-	case r.FailedAt != nil:
-		return "failed"
-	}
-
-	return "unknown"
-}
-
-func (s *ReportStore) Create(ctx context.Context, userId uuid.UUID, reportType string) (*Report, error) {
+func (s *ReportStore) Create(ctx context.Context, userId uuid.UUID, reportType string) (*models.Report, error) {
 	const insert = `INSERT INTO reports (user_id, report_type) VALUED ($1, $2) RETURNING *`
-	var report Report
+	var report models.Report
 	if err := s.db.GetContext(ctx, &report, insert, reportType); err != nil {
 		return nil, fmt.Errorf("failed to insert report for user %w", err)
 	}
@@ -63,7 +31,7 @@ func (s *ReportStore) Create(ctx context.Context, userId uuid.UUID, reportType s
 	return &report, nil
 }
 
-func (s *ReportStore) Update(ctx context.Context, report *Report) (*Report, error) {
+func (s *ReportStore) Update(ctx context.Context, report *models.Report) (*models.Report, error) {
 	const update = `UPDATE reports SET
 					output_file_path= $1,
 					download_url=$2
@@ -73,7 +41,7 @@ func (s *ReportStore) Update(ctx context.Context, report *Report) (*Report, erro
 					completed_at=$6
 					failed_at=$7
 				WHERE user_id=$8 AND id=$9 RETURNING *`
-	var updated Report
+	var updated models.Report
 	if err := s.db.GetContext(ctx, &updated, update,
 		report.OutputFilePath,
 		report.DownloadUrl,
@@ -89,9 +57,9 @@ func (s *ReportStore) Update(ctx context.Context, report *Report) (*Report, erro
 	return report, nil
 }
 
-func (s *ReportStore) ByPrimaryKey(ctx context.Context, userId, id uuid.UUID) (*Report, error) {
+func (s *ReportStore) ByPrimaryKey(ctx context.Context, userId, id uuid.UUID) (*models.Report, error) {
 	const query = `SELECT 1 FROM reports WHERE user_id=$1 AND id=$2`
-	var report Report
+	var report models.Report
 	if err := s.db.GetContext(ctx, &report, query, userId, id); err != nil {
 		return nil, fmt.Errorf("failed to get report %w", err)
 	}

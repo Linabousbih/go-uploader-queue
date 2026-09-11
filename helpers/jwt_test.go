@@ -1,9 +1,10 @@
-package apiserver_test
+package helpers_test
 
 import (
-	"async/apiserver"
-	"async/config"
 	"testing"
+
+	"async/config"
+	"async/helpers"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ func TestJwtManager(t *testing.T) {
 	conf, err := config.New()
 	require.NoError(t, err)
 
-	jwtManager := apiserver.NewJwtManager(conf)
+	jwtManager := helpers.NewJwtManager(conf)
 	userId := uuid.New()
 	tokenPair, err := jwtManager.GenerateTokenPairs(userId)
 	require.NoError(t, err)

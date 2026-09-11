@@ -1,14 +1,16 @@
 package main
 
 import (
-	"async/config"
-	"async/reports"
-	"async/store"
 	"context"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+
+	"async/config"
+	"async/database"
+	"async/repositories"
+	"async/services/reports"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -36,8 +38,8 @@ func run() error {
 		return err
 	}
 
-	db, err := store.NewPostgresDB(conf)
-	dataStore := store.New(db)
+	db, err := database.NewPostgresDB(conf)
+	dataStore := repositories.New(db)
 
 	s3client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(conf.S3LoacalStackEndpoint)

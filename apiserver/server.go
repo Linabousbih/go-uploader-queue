@@ -1,62 +1,29 @@
 package apiserver
 
 import (
-	"async/config"
-	"async/store"
 	"context"
 	"log/slog"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"async/config"
 )
 
 type ApiServer struct {
-	config        *config.Config
-	logger        *slog.Logger
-	store         *store.Store
-	jwtManager    *JwtManager
-	sqsClient     *sqs.Client
-	presignClient *s3.PresignClient
+	config  *config.Config
+	logger  *slog.Logger
+	handler http.Handler
 }
 
-func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager, sqsClient *sqs.Client, presignClient *s3.PresignClient) *ApiServer {
-
-	return &ApiServer{
-		config:        config,
-		logger:        logger,
-		store:         store,
-		jwtManager:    jwtManager,
-		sqsClient:     sqsClient,
-		presignClient: presignClient,
-	}
-}
-
-func (s *ApiServer) ping(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte("pong"))
-	if err != nil {
-
-	}
+func New(config *config.Config, logger *slog.Logger, handler http.Handler) *ApiServer {
+	return &ApiServer{config: config, logger: logger, handler: handler}
 }
 
 func (s *ApiServer) Start(ctx context.Context) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /ping", s.ping)
-	mux.HandleFunc("POST /auth/signup", s.signupHandler())
-	mux.HandleFunc("POST /auth/signin", s.signInHandler())
-	mux.HandleFunc("POST /auth/refresh", s.tokenrefreshHandler())
-	mux.HandleFunc("POST /reports", s.tokenrefreshHandler())
-	mux.HandleFunc("GET /reports/{id}", s.getReportHandler())
-
-	middleware := NewLoggerMiddleware(s.logger)
-	middleware = NewAuthMiddleware(s.jwtManager, s.store.Users)
 	server := &http.Server{
 		Addr:    net.JoinHostPort(s.config.ApiServerHost, s.config.ApiServerPort),
-		Handler: middleware(mux),
+		Handler: s.handler,
 	}
 
 	go func() {
@@ -66,11 +33,7 @@ func (s *ApiServer) Start(ctx context.Context) error {
 		}
 	}()
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		<-ctx.Done()
 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -80,6 +43,5 @@ func (s *ApiServer) Start(ctx context.Context) error {
 		}
 	}()
 
-	wg.Wait()
 	return nil
 }

@@ -1,14 +1,16 @@
 package reports
 
 import (
-	"async/config"
-	"async/store"
 	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/csv"
 	"fmt"
 	"time"
+
+	"async/config"
+	"async/models"
+	"async/repositories"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -17,12 +19,12 @@ import (
 
 type ReportBuilder struct {
 	config      *config.Config
-	reportStore *store.ReportStore
+	reportStore *repositories.ReportStore
 	lozClient   *Loz
 	s3Client    *s3.Client
 }
 
-func NewReportBuilder(reportStore *store.ReportStore, lozClient *Loz, s3Client *s3.Client) *ReportBuilder {
+func NewReportBuilder(reportStore *repositories.ReportStore, lozClient *Loz, s3Client *s3.Client) *ReportBuilder {
 	return &ReportBuilder{
 		reportStore: reportStore,
 		lozClient:   lozClient,
@@ -30,7 +32,7 @@ func NewReportBuilder(reportStore *store.ReportStore, lozClient *Loz, s3Client *
 	}
 }
 
-func (b *ReportBuilder) Build(ctx context.Context, userId, reportId uuid.UUID) (report *store.Report, err error) {
+func (b *ReportBuilder) Build(ctx context.Context, userId, reportId uuid.UUID) (report *models.Report, err error) {
 	report, err = b.reportStore.ByPrimaryKey(ctx, userId, reportId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get report %w", err)

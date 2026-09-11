@@ -1,12 +1,14 @@
 package reports
 
 import (
-	"async/config"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
+
+	"async/config"
+	"async/models"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -98,7 +100,7 @@ func (w *Worker) processMessage(ctx context.Context, message types.Message) erro
 		w.logger.Warn("message body is empty", message.MessageId)
 		return nil
 	}
-	var msg SqsMessage
+	var msg models.SqsMessage
 
 	if err := json.Unmarshal([]byte(*message.Body), &msg); err != nil {
 		w.logger.Warn("message body is invalid", message.MessageId)

@@ -1,10 +1,11 @@
-package store
+package repositories
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
+
+	"async/models"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -22,14 +23,7 @@ func NewRefreshTokenStore(db *sql.DB) *RefreshTokenStore {
 	}
 }
 
-type RefreshToken struct {
-	UserId      uuid.UUID `db:"user_id"`
-	HashedToken string    `db:"hashed_token"`
-	CreatedAt   time.Time `db:"created_at"`
-	ExpiresAt   time.Time `db:"expires_at"`
-}
-
-func (s *RefreshTokenStore) Create(ctx context.Context, userId uuid.UUID, token *jwt.Token) (*RefreshToken, error) {
+func (s *RefreshTokenStore) Create(ctx context.Context, userId uuid.UUID, token *jwt.Token) (*models.RefreshToken, error) {
 	const insert = `INSERT INTO refresh_tokens(user_id, hashed_token, expires_at,) VALUES ($1, $2, $3) RETURNING *;`
 	hashed_token, err := bcrypt.GenerateFromPassword([]byte(token.Raw), bcrypt.DefaultCost)
 
@@ -39,21 +33,21 @@ func (s *RefreshTokenStore) Create(ctx context.Context, userId uuid.UUID, token 
 
 	expiresAt, err := token.Claims.GetExpirationTime()
 
-	var refreshTokenHash RefreshToken
+	var refreshTokenHash models.RefreshToken
 	if err := s.db.GetContext(ctx, &refreshTokenHash, insert, userId, hashed_token, expiresAt); err != nil {
 		return nil, fmt.Errorf("failed to create refresh token record %w", err)
 	}
 	return &refreshTokenHash, nil
 }
 
-func (s *RefreshTokenStore) ByPrimaryKey(ctx context.Context, userId uuid.UUID, token *jwt.Token) (*RefreshToken, error) {
+func (s *RefreshTokenStore) ByPrimaryKey(ctx context.Context, userId uuid.UUID, token *jwt.Token) (*models.RefreshToken, error) {
 	const query = `SELECT * FROM refresh_tokens WHERE user_id=$1 AND hashed_token=$2;`
 	hashed_token, err := bcrypt.GenerateFromPassword([]byte(token.Raw), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}
 
-	var refreshToken RefreshToken
+	var refreshToken models.RefreshToken
 	if err := s.db.GetContext(ctx, &refreshToken, query, userId, hashed_token); err != nil {
 		return nil, fmt.Errorf("%w", err)
 	}

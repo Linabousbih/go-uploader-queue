@@ -1,10 +1,11 @@
-package store_test
+package repositories_test
 
 import (
-	"async/fixtures"
-	"async/store"
 	"context"
 	"testing"
+
+	"async/fixtures"
+	"async/repositories"
 
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ func TestUserStore(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	userStore := store.NewUserStore(env.DB)
+	userStore := repositories.NewUserStore(env.DB)
 	user, err := userStore.CreateUser(context.Background(), "test@test.com", "testpwd")
 	require.NoError(t, err)
 	require.Equal(t, "test@test.com", user.Email)

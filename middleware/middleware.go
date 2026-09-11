@@ -1,11 +1,12 @@
-package apiserver
+package middleware
 
 import (
-	"async/store"
-	"context"
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"async/helpers"
+	"async/repositories"
 
 	"github.com/google/uuid"
 )
@@ -19,13 +20,7 @@ func NewLoggerMiddleware(logger *slog.Logger) func(next http.Handler) http.Handl
 	}
 }
 
-type userCtxKey struct{}
-
-func ContextWithUser(ctx context.Context, user *store.User) context.Context {
-	return context.WithValue(ctx, userCtxKey{}, user)
-}
-
-func NewAuthMiddleware(jwtManager *JwtManager, userStore *store.UserStore) func(next http.Handler) http.Handler {
+func NewAuthMiddleware(jwtManager *helpers.JwtManager, userStore *repositories.UserStore) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// For routes that don't need any authentication
@@ -73,15 +68,7 @@ func NewAuthMiddleware(jwtManager *JwtManager, userStore *store.UserStore) func(
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			next.ServeHTTP(w, r.WithContext(ContextWithUser(r.Context(), user)))
+			next.ServeHTTP(w, r.WithContext(helpers.ContextWithUser(r.Context(), user)))
 		})
 	}
-}
-
-func UserFromContext(ctx context.Context) (*store.User, bool) {
-	user, ok := ctx.Value(userCtxKey{}).(*store.User)
-	if !ok || user == nil {
-		return nil, false
-	}
-	return user, true
 }

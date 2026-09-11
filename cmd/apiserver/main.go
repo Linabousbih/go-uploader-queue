@@ -1,14 +1,19 @@
 package main
 
 import (
-	"async/apiserver"
-	"async/config"
-	"async/store"
 	"context"
 	"log"
 	"log/slog"
 	"os"
 	"time"
+
+	"async/apiserver"
+	"async/config"
+	"async/controllers"
+	"async/database"
+	"async/helpers"
+	"async/repositories"
+	"async/routes"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -32,7 +37,7 @@ func run() error {
 	}
 	jsonHandler := slog.NewJSONHandler(os.Stdout, nil)
 	logger := slog.New(jsonHandler)
-	db, err := store.NewPostgresDB(config)
+	db, err := database.NewPostgresDB(config)
 
 	if err != nil {
 		return err
@@ -41,7 +46,7 @@ func run() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	dataStore := store.New(db)
+	dataStore := repositories.New(db)
 	sqsClient := sqs.NewFromConfig(sdkConfig, func(o *sqs.Options) {
 		o.BaseEndpoint = aws.String(config.LocalStackEndpoint)
 	})
@@ -54,8 +59,10 @@ func run() error {
 
 	presignClient := s3.NewPresignClient(s3client)
 
-	jwtManager := apiserver.NewJwtManager(config)
-	server := apiserver.New(config, logger, dataStore, jwtManager, sqsClient, presignClient)
+	jwtManager := helpers.NewJwtManager(config)
+	controller := controllers.New(config, logger, dataStore, jwtManager, sqsClient, presignClient)
+	handler := routes.New(controller, logger, jwtManager, dataStore.Users)
+	server := apiserver.New(config, logger, handler)
 
 	if err := server.Start(ctx); err != nil {
 		return err

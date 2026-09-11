@@ -1,10 +1,12 @@
-package apiserver
+package helpers
 
 import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	"async/models"
 )
 
 type ErrWithStatus struct {
@@ -24,11 +26,11 @@ func NewErrWithStatus(status int, err error) *ErrWithStatus {
 }
 
 // We are customizing what errors would return a status code, what errors are logged and what errors are shown to the user
-func handler(f func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
+func Handler(f func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// core handler is called here
+		// core Handler is called here
 		if err := f(w, r); err != nil {
-			// Default status in case the handler did not receive a ErrWithStatus type
+			// Default status in case the Handler did not receive a ErrWithStatus type
 			status := http.StatusInternalServerError
 			msg := http.StatusText(status)
 			if e, ok := err.(*ErrWithStatus); ok {
@@ -39,15 +41,15 @@ func handler(f func(w http.ResponseWriter, r *http.Request) error) http.HandlerF
 				}
 			}
 
-			slog.Error("error executing handler", "error", err, "status", status, "message", msg)
+			slog.Error("error executing Handler", "error", err, "status", status, "message", msg)
 			w.WriteHeader(status)
 
-			// if err := json.NewEncoder(w).Encode(ApiResponse[struct{}]{
+			// if err := json.NewEncoder(w).Encode(models.ApiResponse[struct{}]{
 			// 	Message: msg,
 			// }); err != nil {
 			// 	slog.Error("error encoding response", "error", err)
 			// }
-			if err := encode(ApiResponse[struct{}]{
+			if err := Encode(models.ApiResponse[struct{}]{
 				Message: msg,
 			}, status, w); err != nil {
 				slog.Error("error encoding response", "error", err)
@@ -56,7 +58,7 @@ func handler(f func(w http.ResponseWriter, r *http.Request) error) http.HandlerF
 	}
 }
 
-func encode[T any](v T, status int, w http.ResponseWriter) error {
+func Encode[T any](v T, status int, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
@@ -70,7 +72,7 @@ type Validator interface {
 	Validate() error
 }
 
-func decode[T Validator](r *http.Request) (T, error) {
+func Decode[T Validator](r *http.Request) (T, error) {
 	var t T
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 		return t, fmt.Errorf("decoding request body: %w", err)

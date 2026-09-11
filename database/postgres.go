@@ -1,11 +1,12 @@
-package store
+package database
 
 import (
-	"async/config"
 	"context"
 	"database/sql"
 	"fmt"
 	"time"
+
+	"async/config"
 )
 
 func NewPostgresDB(conf *config.Config) (*sql.DB, error) {
